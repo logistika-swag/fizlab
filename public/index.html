@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FizLab — PC Service</title>
+<style>
+:root{--bg:#080b12;--panel:#111722;--panel2:#151d2b;--text:#eef4ff;--muted:#8d9ab0;--accent:#6c7cff;--accent2:#00d4ff;--ok:#32d583;--warn:#ffb020;--line:#202a3a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% -10%,#202a62 0,#080b12 38%);color:var(--text);font:15px Inter,system-ui,sans-serif}
+button,input,textarea,select{font:inherit}button{cursor:pointer;border:0}
+.app{display:flex;min-height:100vh}
+.side{width:245px;padding:24px 16px;border-right:1px solid var(--line);background:#0b0f17;position:sticky;top:0;height:100vh}
+.logo{font-size:22px;font-weight:800;padding:8px 12px 25px}.logo span{color:var(--accent2)}
+.nav button{width:100%;text-align:left;background:transparent;color:var(--muted);padding:12px;border-radius:10px;margin:3px 0}
+.nav button.active,.nav button:hover{background:var(--panel2);color:white}
+.main{flex:1;padding:28px;max-width:1250px;margin:auto}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
+.pill{background:#17213a;color:#b8c6ff;padding:7px 11px;border-radius:20px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card{background:linear-gradient(180deg,#121a28,#0e141f);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 15px 40px #0003}
+.hero{grid-column:1/-1;padding:30px;background:linear-gradient(120deg,#141d39,#101722 60%,#0b1723)}
+h1{font-size:34px;margin:0 0 8px}.muted{color:var(--muted)}
+.btn{background:var(--accent);color:white;padding:11px 15px;border-radius:10px;font-weight:700}
+.btn.secondary{background:#1b2535}.btn.green{background:#159b62}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+.stat{font-size:28px;font-weight:800;margin-top:7px}
+.service{display:flex;justify-content:space-between;align-items:center;gap:15px}
+.price{font-weight:800;color:#8da0ff}
+.section{display:none}.section.active{display:block}
+.list{display:grid;gap:10px;margin-top:15px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:15px;background:#0d141f;border:1px solid var(--line);border-radius:12px}
+.tag{padding:5px 8px;border-radius:8px;background:#182235;color:#b9c7ff;font-size:12px}
+.ok{color:var(--ok)}.warn{color:var(--warn)}
+.modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:20px}
+.modal.open{display:flex}
+.box{background:#101722;border:1px solid var(--line);border-radius:18px;padding:24px;width:min(600px,100%)}
+input,textarea,select{width:100%;margin:8px 0 14px;background:#0a1019;border:1px solid var(--line);color:white;border-radius:9px;padding:11px}
+.chat{height:300px;overflow:auto;background:#0a1018;border-radius:12px;padding:12px}
+.msg{padding:9px 11px;border-radius:10px;background:#182235;margin:8px 0;max-width:80%}
+.me{margin-left:auto;background:#2a3470}
+.report{white-space:pre-wrap;background:#0a1018;border:1px solid var(--line);padding:15px;border-radius:12px}
+@media(max-width:800px){.side{width:70px}.logo{font-size:0}.logo span{font-size:18px}.nav button{font-size:0;text-align:center}.main{padding:18px}.grid{grid-template-columns:1fr}.hero{grid-column:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+<div class="logo">FIZ<span>LAB</span></div>
+<div class="nav">
+<button class="active" onclick="show('home',this)">⌂ <span>Главная</span></button>
+<button onclick="show('services',this)">🔧 <span>Услуги</span></button>
+<button onclick="show('diagnostic',this)">◉ <span>Диагностика</span></button>
+<button onclick="show('orders',this)">▣ <span>Мои заказы</span></button>
+<button onclick="show('chat',this)">💬 <span>Чат</span></button>
+</div>
+</aside>
+
+<main class="main">
+<section id="home" class="section active">
+<div class="top"><div><div class="muted">PC SERVICE</div><h1>Твой ПК. В порядке.</h1></div><span class="pill">● Система онлайн</span></div>
+<div class="grid">
+<div class="card hero"><h2>Помощь с Windows и ПК</h2><div class="muted">Диагностика, настройка и исправление программных проблем.</div><div class="actions"><button class="btn" onclick="show('diagnostic')">Начать диагностику</button><button class="btn secondary" onclick="show('services')">Посмотреть услуги</button></div></div>
+<div class="card"><div class="muted">Активные заказы</div><div class="stat" id="activeCount">0</div></div>
+<div class="card"><div class="muted">Всего создано</div><div class="stat" id="totalCount">0</div></div>
+<div class="card"><div class="muted">Выполнено</div><div class="stat" id="doneCount">0</div></div>
+</div>
+</section>
+
+<section id="services" class="section">
+<div class="top"><div><div class="muted">КАТАЛОГ</div><h1>Услуги</h1></div></div>
+<div class="grid" id="serviceList"></div>
+</section>
+
+<section id="diagnostic" class="section">
+<div class="top"><div><div class="muted">ШАГ 1</div><h1>Диагностика</h1></div></div>
+<div class="card">
+<label>Что происходит?</label>
+<select id="problem"><option>ПК медленно работает</option><option>Windows долго запускается</option><option>Не работает звук</option><option>Не работает интернет</option><option>Программы вылетают</option><option>Другая проблема</option></select>
+<label>Опиши проблему подробнее</label>
+<textarea id="details" rows="5" placeholder="Например: после включения компьютер очень долго открывает программы..."></textarea>
+<label>Операционная система</label>
+<select id="os"><option>Windows 11</option><option>Windows 10</option><option>Не знаю</option></select>
+<label>Твоё имя (для связи)</label>
+<input id="clientName" placeholder="Как к тебе обращаться?">
+<button class="btn" onclick="diagnose()">Запустить диагностику</button>
+<div id="diagResult" style="margin-top:18px"></div>
+</div>
+</section>
+
+<section id="orders" class="section">
+<div class="top"><div><div class="muted">ИСТОРИЯ</div><h1>Мои заказы</h1></div><button class="btn secondary" onclick="loadOrders()">Обновить</button></div>
+<div class="card"><div class="list" id="ordersList"><div class="muted">Загрузка...</div></div></div>
+</section>
+
+<section id="chat" class="section">
+<div class="top"><div><div class="muted">ПОДДЕРЖКА</div><h1>Чат с администратором</h1></div></div>
+<div class="card">
+<label>Номер заказа (ID)</label>
+<input id="chatOrderId" placeholder="Например: 1">
+<button class="btn secondary" onclick="joinChat()">Подключиться к чату</button>
+<div class="chat" id="chatBox" style="margin-top:15px"><div class="msg">Система: введите номер заказа и нажмите "Подключиться".</div></div>
+<div class="actions"><input id="chatInput" placeholder="Сообщение..." style="margin:0"><button class="btn" onclick="sendMsg()">Отправить</button></div>
+</div>
+</section>
+</main>
+</div>
+
+<div class="modal" id="payModal"><div class="box"><h2>Оформление заказа</h2><div id="payText" class="muted"></div><label>Имя</label><input id="payName" placeholder="Как к вам обращаться?"><label>Комментарий</label><textarea id="payComment" rows="3" placeholder="Дополнительная информация"></textarea><div class="actions"><button class="btn green" onclick="pay()">Создать заказ</button><button class="btn secondary" onclick="closePay()">Отмена</button></div></div></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const services=[
+['Ускорение Windows','Оптимизация автозагрузки, временных файлов и настроек.',5],
+['Диагностика ПК','Проверка программных причин неисправностей.',3],
+['Установка драйверов','Поиск и установка актуальных драйверов.',5],
+['Настройка программ','Discord, Steam, браузеры и другое ПО.',3],
+['Настройка периферии','Микрофон, наушники, принтер и устройства.',4],
+['Полная настройка ПК','Базовая настройка Windows после установки.',12]
+];
+let selected={};
+let socket=null;
+let currentOrderId=null;
+
+function show(id,btn){
+    document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+    if(btn)btn.classList.add('active');
+    if(id==='home')loadStats();
+}
+
+function renderServices(){
+    serviceList.innerHTML=services.map((s,i)=>`<div class="card service"><div><h3>${s[0]}</h3><div class="muted">${s[1]}</div></div><div><div class="price">€${s[2]}</div><button class="btn" onclick="order(${i})" style="margin-top:10px">Заказать</button></div></div>`).join('');
+}
+
+function order(i){
+    selected=services[i];
+    payText.textContent=`Услуга: ${selected[0]} · €${selected[2]}`;
+    payModal.classList.add('open');
+}
+function closePay(){payModal.classList.remove('open');}
+
+async function pay(){
+    const name=payName.value.trim()||'Гость';
+    const comment=payComment.value.trim();
+    closePay();
+    try{
+        const res=await fetch('/api/orders',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                client_name:name,
+                service:selected[0],
+                price:selected[2],
+                problem:selected[0],
+                details:comment
+            })
+        });
+        const data=await res.json();
+        alert('Заказ создан! ID: '+data.id+'\n\nСохраните ID для чата с админом.');
+        show('orders');
+        loadOrders();
+    }catch(e){
+        alert('Ошибка: '+e.message);
+    }
+}
+
+async function diagnose(){
+    const p=problem.value;
+    const name=clientName.value.trim()||'Гость';
+    const details=document.getElementById('details').value;
+    diagResult.innerHTML=`<div class="card" style="background:#0b1418"><b class="ok">Предварительная диагностика завершена</b><p class="muted">Обнаружена возможная программная проблема: «${p}».</p><p>Рекомендуем создать заявку на диагностику за €3.</p><button class="btn" onclick='createDiagOrder(${JSON.stringify(p)},${JSON.stringify(name)},${JSON.stringify(details)})'>Создать заявку</button></div>`;
+}
+
+async function createDiagOrder(problem,name,details){
+    try{
+        const res=await fetch('/api/orders',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({client_name:name,service:'Диагностика ПК',price:3,problem,details})
+        });
+        const data=await res.json();
+        alert('Заявка на диагностику создана! ID: '+data.id);
+        show('orders');
+        loadOrders();
+    }catch(e){
+        alert('Ошибка: '+e.message);
+    }
+}
+
+async function loadOrders(){
+    ordersList.innerHTML='<div class="muted">Загрузка...</div>';
+    try{
+        const res=await fetch('/api/orders');
+        const orders=await res.json();
+        if(!orders.length){ordersList.innerHTML='<div class="muted">Заказов пока нет.</div>';return;}
+        ordersList.innerHTML=orders.map(o=>`<div class="row"><div><b>#${o.id} — ${o.service}</b><div class="muted small">${o.client_name||'Гость'} · ${new Date(o.created_at).toLocaleString('ru')}</div></div><div style="display:flex;gap:8px;align-items:center"><span class="tag">${o.status}</span><button class="btn secondary" onclick="openChat(${o.id})">💬</button></div></div>`).join('');
+    }catch(e){
+        ordersList.innerHTML='<div class="warn">Ошибка загрузки: '+e.message+'</div>';
+    }
+}
+
+async function loadStats(){
+    try{
+        const res=await fetch('/api/orders/stats/summary');
+        const s=await res.json();
+        document.getElementById('activeCount').textContent=(s.new_count||0)+(s.in_progress||0);
+        document.getElementById('totalCount').textContent=s.total||0;
+        document.getElementById('doneCount').textContent=s.done_count||0;
+    }catch(e){}
+}
+
+function openChat(id){
+    show('chat');
+    document.getElementById('chatOrderId').value=id;
+    joinChat();
+}
+
+function joinChat(){
+    const id=document.getElementById('chatOrderId').value.trim();
+    if(!id){alert('Введите ID заказа');return;}
+    currentOrderId=id;
+    if(socket)socket.disconnect();
+    socket=io();
+    socket.on('connect',()=>{
+        socket.emit('join_order',id);
+        socket.emit('load_history',id);
+    });
+    socket.on('message',(m)=>{
+        const cls=m.sender==='client'?'me':'';
+        chatBox.insertAdjacentHTML('beforeend',`<div class="msg ${cls}"><b>${m.sender}:</b> ${m.text}</div>`);
+        chatBox.scrollTop=chatBox.scrollHeight;
+    });
+    socket.on('history',(rows)=>{
+        chatBox.innerHTML=`<div class="msg">Подключено к заказу #${id}</div>`;
+        rows.forEach(m=>{
+            const cls=m.sender==='client'?'me':'';
+            chatBox.insertAdjacentHTML('beforeend',`<div class="msg ${cls}"><b>${m.sender}:</b> ${m.text}</div>`);
+        });
+        chatBox.scrollTop=chatBox.scrollHeight;
+    });
+}
+
+function sendMsg(){
+    const i=document.getElementById('chatInput');
+    if(!i.value.trim()||!socket||!currentOrderId)return;
+    socket.emit('message',{orderId:currentOrderId,sender:'client',text:i.value.trim()});
+    i.value='';
+}
+
+renderServices();
+loadStats();
+loadOrders();
+</script>
+</body>
+</html>
