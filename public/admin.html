@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FizLab Admin</title>
+<style>
+body{background:#0a0e17;color:#eef4ff;font:15px system-ui;margin:0;padding:30px}
+h1{margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:25px}
+.card{background:#111722;border:1px solid #202a3a;border-radius:14px;padding:20px}
+.stat{font-size:32px;font-weight:800;color:#6c7cff;margin-top:8px}
+table{width:100%;border-collapse:collapse;background:#111722;border-radius:14px;overflow:hidden}
+th,td{padding:14px;text-align:left;border-bottom:1px solid #202a3a;vertical-align:top}
+th{background:#151d2b;color:#8d9ab0;font-size:13px}
+.status{padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block}
+.new{background:#3a2a10;color:#ffb020}
+.in_progress{background:#1a2340;color:#6c7cff}
+.done{background:#0f2a1c;color:#32d583}
+button{background:#6c7cff;color:#fff;border:0;padding:8px 14px;border-radius:8px;cursor:pointer;margin:2px}
+button:hover{background:#5563e0}
+button.green{background:#159b62}
+.chat{background:#0a1018;border:1px solid #202a3a;border-radius:12px;padding:12px;height:250px;overflow:auto;margin:10px 0}
+.msg{padding:8px 11px;border-radius:10px;background:#182235;margin:6px 0;max-width:80%}
+.me{margin-left:auto;background:#2a3470}
+input{background:#0a1019;border:1px solid #202a3a;color:white;border-radius:8px;padding:10px;width:70%}
+.modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal.open{display:flex}
+.box{background:#101722;border:1px solid #202a3a;border-radius:18px;padding:24px;width:min(700px,100%);max-height:90vh;overflow:auto}
+</style>
+</head>
+<body>
+<h1>⚙ FizLab — Админ-панель</h1>
+
+<div class="grid">
+    <div class="card"><div>Новые заявки</div><div class="stat" id="newCount">0</div></div>
+    <div class="card"><div>В работе</div><div class="stat" id="inProgress">0</div></div>
+    <div class="card"><div>Выполнено</div><div class="stat" id="doneCount">0</div></div>
+    <div class="card"><div>Выручка</div><div class="stat" id="revenue">€0</div></div>
+</div>
+
+<table>
+<thead>
+<tr><th>#</th><th>Клиент</th><th>Услуга</th><th>Цена</th><th>Проблема</th><th>Статус</th><th>Действия</th></tr>
+</thead>
+<tbody id="ordersTable"></tbody>
+</table>
+
+<div class="modal" id="chatModal"><div class="box">
+<h2>Чат по заказу <span id="chatOrderLabel"></span></h2>
+<div class="chat" id="adminChatBox"></div>
+<div style="display:flex;gap:8px"><input id="adminChatInput" placeholder="Сообщение клиенту..."><button onclick="adminSend()">Отправить</button></div>
+<button style="margin-top:14px;background:#333" onclick="document.getElementById('chatModal').classList.remove('open')">Закрыть</button>
+</div></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let socket=null;
+let currentOrderId=null;
+
+async function loadStats(){
+    try{
+        const res=await fetch('/api/orders/stats/summary');
+        const d=await res.json();
+        document.getElementById('newCount').textContent=d.new_count||0;
+        document.getElementById('inProgress').textContent=d.in_progress||0;
+        document.getElementById('doneCount').textContent=d.done_count||0;
+        document.getElementById('revenue').textContent='€'+(d.revenue||0);
+    }catch(e){}
+}
+
+async function loadOrders(){
+    try{
+        const res=await fetch('/api/orders');
+        const orders=await res.json();
+        if(!orders.length){document.getElementById('ordersTable').innerHTML='<tr><td colspan="7">Заказов пока нет</td></tr>';return;}
+        document.getElementById('ordersTable').innerHTML=orders.map(o=>`
+            <tr>
+                <td>#${o.id}</td>
+                <td>${o.client_name||'Гость'}</td>
+                <td>${o.service}</td>
+                <td>€${o.price}</td>
+                <td>${o.problem||''}<br><small style="color:#8d9ab0">${o.details||''}</small></td>
+                <td><span class="status ${o.status}">${o.status}</span></td>
+                <td>
+                    <button onclick="setStatus(${o.id},'in_progress')">В работу</button>
+                    <button class="green" onclick="setStatus(${o.id},'done')">Готово</button>
+                    <button onclick="openChat(${o.id})">💬 Чат</button>
+                </td>
+            </tr>
+        `).join('');
+    }catch(e){}
+}
+
+async function setStatus(id,status){
+    await fetch('/api/orders/'+id,{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({status})
+    });
+    loadOrders();
+    loadStats();
+}
+
+function openChat(id){
+    currentOrderId=id;
+    document.getElementById('chatOrderLabel').textContent='#'+id;
+    document.getElementById('chatModal').classList.add('open');
+    if(socket)socket.disconnect();
+    socket=io();
+    socket.on('connect',()=>{
+        socket.emit('join_order',id);
+        socket.emit('load_history',id);
+    });
+    socket.on('message',(m)=>{
+        const box=document.getElementById('adminChatBox');
+        const cls=m.sender==='admin'?'me':'';
+        box.insertAdjacentHTML('beforeend',`<div class="msg ${cls}"><b>${m.sender}:</b> ${m.text}</div>`);
+        box.scrollTop=box.scrollHeight;
+    });
+    socket.on('history',(rows)=>{
+        const box=document.getElementById('adminChatBox');
+        box.innerHTML='';
+        rows.forEach(m=>{
+            const cls=m.sender==='admin'?'me':'';
+            box.insertAdjacentHTML('beforeend',`<div class="msg ${cls}"><b>${m.sender}:</b> ${m.text}</div>`);
+        });
+        box.scrollTop=box.scrollHeight;
+    });
+}
+
+function adminSend(){
+    const i=document.getElementById('adminChatInput');
+    if(!i.value.trim()||!socket||!currentOrderId)return;
+    socket.emit('message',{orderId:currentOrderId,sender:'admin',text:i.value.trim()});
+    i.value='';
+}
+
+loadStats();
+loadOrders();
+setInterval(()=>{loadStats();loadOrders();},15000);
+</script>
+</body>
+</html>
