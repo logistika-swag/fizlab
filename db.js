@@ -46,6 +46,12 @@ db.serialize(() => {
         method TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    db.run(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER,
+        subscription TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
 
     console.log('✅ База данных готова');
 });
