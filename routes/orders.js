@@ -1,0 +1,52 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../db');
+
+router.post('/', (req, res) => {
+    const { client_name, service, price, problem, details } = req.body;
+    db.run(
+        `INSERT INTO orders (client_name, service, price, problem, details)
+         VALUES (?, ?, ?, ?, ?)`,
+        [client_name || 'Гость', service, price, problem, details],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, status: 'new' });
+        }
+    );
+});
+
+router.get('/', (req, res) => {
+    db.all(`SELECT * FROM orders ORDER BY created_at DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+router.patch('/:id', (req, res) => {
+    const { status, report } = req.body;
+    db.run(
+        `UPDATE orders SET status = ?, report = ? WHERE id = ?`,
+        [status, report, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ updated: this.changes });
+        }
+    );
+});
+
+router.get('/stats/summary', (req, res) => {
+    db.get(`
+        SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) as new_count,
+            SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+            SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done_count,
+            SUM(CASE WHEN status = 'done' THEN price ELSE 0 END) as revenue
+        FROM orders
+    `, [], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(row);
+    });
+});
+
+module.exports = router;
