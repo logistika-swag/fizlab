@@ -1,4 +1,5 @@
 const db = require('./db');
+const push = require('./push');
 
 module.exports = (io) => {
     io.on('connection', (socket) => {
@@ -22,13 +23,16 @@ module.exports = (io) => {
                         created_at: new Date()
                     };
                     io.to(`order_${orderId}`).emit('message', message);
-                    // Уведомление админу, если пишет клиент
                     if (sender === 'client') {
                         io.emit('admin_notification', { orderId, text });
                     }
-                    // Уведомление клиенту, если пишет админ
                     if (sender === 'admin') {
                         io.emit('client_notification', { orderId, text });
+                        push.sendPushToOrder(orderId, {
+                            title: '💬 FizLab — новое сообщение',
+                            body: text,
+                            orderId: orderId
+                        });
                     }
                 }
             );
