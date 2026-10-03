@@ -54,6 +54,7 @@ app.use(express.static(path.join(__dirname, 'public'), { index: 'index.html' }))
 
 // API маршруты
 app.use('/api/orders', require('./routes/orders'));
+app.use('/api/push', require('./routes/push'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/auth', require('./routes/auth'));
 
